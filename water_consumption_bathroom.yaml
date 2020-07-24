@@ -1,0 +1,64 @@
+substitutions:
+  devicename: water_consumption_bathroom
+
+esphome:
+  name: water_consumption_bathroom
+  platform: ESP8266
+  board: nodemcuv2
+  esp8266_restore_from_flash: true
+  platformio_options:
+    platform: "espressif8266@2.6.0"
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+
+captive_portal:
+
+logger:
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+  
+binary_sensor:
+  - platform: status
+    name: "$devicename_status"
+  - platform: gpio
+    name: "$devicename_cold"
+    pin:
+      number: D5
+      mode: INPUT_PULLUP
+    filters:
+      - delayed_on: 100ms
+      - delayed_off: 100ms
+  - platform: template
+    name: "$devicename_hot"
+    lambda: |-
+      if (id(water_consumption_bathroom_hot_analog).state > 0.2) {
+        return true;
+      } else {
+        return false;
+      }
+    
+sensor:
+  - platform: uptime
+    name: "$devicename_uptime"
+  - platform: adc
+    pin: A0
+    id: water_consumption_bathroom_hot_analog
+    update_interval: 2s
+    internal: true
+
+globals:
+  - id: hot_water_counter
+    type: uint32
+    restore_value: yes
+    initial_value: '0'
+  - id: cold_water_counter
+    type: uint32
+    restore_value: yes
+    initial_value: '0'

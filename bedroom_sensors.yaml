@@ -1,0 +1,82 @@
+substitutions:
+  devicename: bedroom_sensors
+  name1: Miflora 1
+  mac1: C4:7C:8D:6B:40:31
+  token1: 5e5a0c71549e1955e01210b7
+  name2: Miflora 2
+  mac2: C4:7C:8D:6B:40:22
+  token2: de20224e3ce55c44ae17f1ff
+
+esphome:
+  name: $devicename
+  platform: ESP32
+  board: esp32doit-devkit-v1
+  platformio_options:
+    upload_speed: 921600
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+
+  ap:
+    ssid: "Hotspot $devicename"
+    password: !secret hotspot_password
+
+captive_portal:
+
+debug:
+
+logger:
+  baud_rate: 0
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+
+uart:
+  - id: uart2
+    rx_pin: GPIO16
+    tx_pin: GPIO17
+    baud_rate: 9600
+    
+esp32_ble_tracker:
+xiaomi_ble:
+
+sensor:
+  - platform: uptime
+    name: $devicename uptime
+  - platform: xiaomi_hhccjcy01
+    mac_address: $mac1
+    temperature:
+      name: "$name1 Temperature"
+    moisture:
+      name: "$name1 Moisture"
+    illuminance:
+      name: "$name1 Illuminance"
+    conductivity:
+      name: "$name1 Conductivity"
+  - platform: xiaomi_hhccjcy01
+    mac_address: $mac2
+    temperature:
+      name: "$name2 Temperature"
+    moisture:
+      name: "$name2 Moisture"
+    illuminance:
+      name: "$name2 Illuminance"
+    conductivity:
+      name: "$name2 Conductivity"
+  - platform: senseair
+    uart_id: uart2
+    co2:
+      name: "$devicename co2"
+    update_interval: 30s
+  - platform: template
+    name: "$devicename heap"
+    lambda: "return ESP.getFreeHeap();"
+    update_interval: 20s
+    unit_of_measurement: bytes
+    accuracy_decimals: 0
+

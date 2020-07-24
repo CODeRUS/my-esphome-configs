@@ -1,0 +1,81 @@
+substitutions:
+  devicename: livingroom_sensors
+  
+esphome:
+  name: $devicename
+  platform: ESP8266
+  board: esp12e
+  platformio_options:
+    platform: "espressif8266"
+    upload_speed: 460800
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+
+logger:
+  baud_rate: 0
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+
+uart:
+  rx_pin: GPIO3
+  tx_pin: GPIO1
+  baud_rate: 9600
+    
+i2c:
+  sda: GPIO4
+  scl: GPIO5
+  scan: False
+
+sensor:
+  - platform: uptime
+    name: "$devicename uptime"
+  - platform: dht
+    model: DHT22
+    pin: GPIO2
+    temperature:
+      name: "$devicename Temperature"
+    humidity:
+      name: "$devicename Humidity"
+    update_interval: 60s
+  - platform: senseair
+    co2:
+      name: "$devicename co2"
+    update_interval: 30s
+  - platform: sps30
+    pm_1_0:
+      name: "$devicename pm10"
+    pm_2_5:
+      name: "$devicename pm25"
+    pm_4_0:
+      name: "$devicename pm40"
+    pm_10_0:
+      name: "$devicename pm100"
+    pmc_0_5:
+      name: "$devicename pmc05"
+    pmc_1_0:
+      name: "$devicename pmc10"
+    pmc_2_5:
+      name: "$devicename pmc25"
+    pmc_4_0:
+      name: "$devicename pmc40"
+    pmc_10_0:
+      name: "$devicename pmc100"
+    address: 0x69
+    update_interval: 30s
+
+binary_sensor:
+  - platform: gpio
+    pin: GPIO0
+    name: "$devicename button"
+
+status_led:
+  pin:
+    number: GPIO16
+    inverted: False

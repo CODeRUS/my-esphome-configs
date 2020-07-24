@@ -1,0 +1,78 @@
+substitutions:
+  devicename: power_strip_2
+
+esphome:
+  name: $devicename
+  platform: ESP8266
+  board: esp01_1m
+  esp8266_restore_from_flash: true
+  platformio_options:
+    platform: "espressif8266@2.6.0"
+  on_boot:
+    then:
+      switch.turn_on: switch_usb
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+
+logger:
+  baud_rate: 0
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+  
+uart:
+  rx_pin: GPIO3
+  tx_pin: GPIO1
+  baud_rate: 9600
+
+tuya:
+  
+globals:
+  - id: switch_master_var
+    type: bool
+    restore_value: yes
+    initial_value: 'true'
+
+switch:
+  - platform: "tuya"
+    switch_datapoint: 38
+    id: switch_master
+    internal: true
+  - platform: template
+    name: "$devicename master"
+    restore_state: yes
+    lambda: |-
+      return id(switch_master_var);
+    turn_on_action:
+      - globals.set:
+          id: switch_master_var
+          value: 'true'
+      - switch.turn_on: switch_master
+    turn_off_action:
+      - globals.set:
+          id: switch_master_var
+          value: 'false'
+      - switch.turn_off: switch_master
+  - platform: "tuya"
+    name: "$devicename relay 1"
+    switch_datapoint: 1
+  - platform: "tuya"
+    name: "$devicename relay 2"
+    switch_datapoint: 2
+  - platform: "tuya"
+    name: "$devicename relay 3"
+    switch_datapoint: 3
+  - platform: "tuya"
+    name: "$devicename relay 4"
+    switch_datapoint: 4
+  - platform: "tuya"
+    name: "$devicename usb"
+    switch_datapoint: 7
+    id: switch_usb
+    

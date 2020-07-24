@@ -1,0 +1,36 @@
+esphome:
+  name: gyverlamp
+  platform: ESP32
+  board: esp32doit-devkit-v1
+  platformio_options:
+    lib_deps:
+      - FastLED
+      - https://github.com/marcmerlin/FastLED_NeoMatrix.git
+      - https://github.com/marcmerlin/Framebuffer_GFX.git
+      - Adafruit GFX Library
+      - SPI
+    lib_ignore:
+      - Adafruit ILI9341
+  includes:
+    - gyverlamp_esphome
+
+wifi:
+  ssid: "omhome"
+  password: "omnomnom"
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Gyverlamp Fallback Hotspot"
+    password: "CiWeLmDyV0Ec"
+
+captive_portal:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: "only4one8esp"
+
+ota:
+  password: "only4one8esp"

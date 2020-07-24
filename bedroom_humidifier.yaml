@@ -1,0 +1,615 @@
+substitutions:
+  devicename: bedroom_humidifier
+  pin_mode_1: GPIO33
+  pin_mode_2: GPIO27
+  pin_ion: GPIO32
+  pin_buzzer: GPIO26
+  pin_water_overfill: GPIO34
+  pin_water_thrist: GPIO35
+  pin_touch_1: GPIO14
+  pin_touch_2: GPIO12
+  pin_touch_3: GPIO13
+  ha_humidity_sensor: sensor.0x00158d000227d566_humidity
+  ha_temperature_sensor: sensor.0x00158d000227d566_temperature
+  
+esphome:
+  name: $devicename
+  platform: ESP32
+  board: esp32doit-devkit-v1
+  platformio_options:
+    platform: "espressif32@1.12.4"
+    upload_speed: 921600
+  on_boot:
+    priority: -100
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(screen_bool);
+          then:
+            lambda: |-
+              id(sevseg_ind).setChars("hi");
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+  manual_ip:
+    static_ip: 192.168.1.208
+    gateway: 192.168.1.1
+    subnet: 255.255.255.0
+    
+
+logger:
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+
+sensor:
+  - platform: uptime
+    name: "$devicename uptime"
+  - platform: homeassistant
+    id: humidity
+    internal: true
+    entity_id: $ha_humidity_sensor
+    on_value:
+      - logger.log:
+          format: 'humidity: %f'
+          args: ['x']
+      - if:
+          condition:
+            lambda: |-
+              return id(screen_bool);
+          then:
+            lambda: |-
+              if (x < 100)
+                id(sevseg_ind).setNumber(int(x));
+  - platform: homeassistant
+    id: temperature
+    internal: true
+    entity_id: $ha_temperature_sensor
+    # on_value:
+    #   - logger.log:
+    #       format: 'temperature: %f'
+    #       args: ['x']
+    #   - lambda: |-
+    #       id(sevseg_ind).setNumber(int(x));
+  
+output:
+  - platform: ledc
+    pin: $pin_buzzer
+    id: buzzer
+  - platform: gpio
+    pin:
+      number: $pin_ion
+      inverted: True
+    id: ion
+  - platform: template
+    id: fan_output
+    type: float
+    write_action:
+      - if:
+          condition:
+            lambda: return (state == 0.0f);
+          then:
+            - switch.turn_off: mode1
+            - switch.turn_off: mode2
+            - output.turn_off: ion
+            - if:
+                condition:
+                  lambda: |-
+                    return id(screen_bool);
+                then:
+                  lambda: |-
+                    id(sevseg_ind).setChars("p0");
+      - if:
+          condition:
+            lambda: return (state == 0.1f);
+          then:
+            - switch.turn_on: mode1
+            - switch.turn_off: mode2
+            - if:
+                condition:
+                  lambda: |-
+                    return id(ion_bool);
+                then:
+                  output.turn_on: ion
+            - if:
+                condition:
+                  lambda: |-
+                    return id(screen_bool);
+                then:
+                  lambda: |-
+                    id(sevseg_ind).setChars("p1");
+      - if:
+          condition:
+            lambda: return (state == 0.2f);
+          then:
+            - switch.turn_off: mode1
+            - switch.turn_on: mode2
+            - if:
+                condition:
+                  lambda: |-
+                    return id(ion_bool);
+                then:
+                  output.turn_on: ion
+            - if:
+                condition:
+                  lambda: |-
+                    return id(screen_bool);
+                then:
+                  lambda: |-
+                    id(sevseg_ind).setChars("p2");
+      - if:
+          condition:
+            lambda: return (state == 0.3f);
+          then:
+            - switch.turn_on: mode1
+            - switch.turn_on: mode2
+            - if:
+                condition:
+                  lambda: |-
+                    return id(ion_bool);
+                then:
+                  output.turn_on: ion
+            - if:
+                condition:
+                  lambda: |-
+                    return id(screen_bool);
+                then:
+                  lambda: |-
+                    id(sevseg_ind).setChars("p3");
+      - delay: 2s
+      - script.execute: display_humidity
+            
+fan:
+  - platform: speed
+    name: "$devicename fan"
+    id: humidifier
+    output: fan_output
+    speed:
+      low: 0.1
+      medium: 0.2
+      high: 0.3
+    
+script:
+  - id: beep_single
+    then:
+      - logger.log: "Beep single"
+      - output.turn_on: buzzer
+      - output.set_level:
+          id: buzzer
+          level: "10%"
+      - output.ledc.set_frequency:
+          id: buzzer
+          frequency: "1500Hz"
+      - delay: 100ms
+      - output.set_level:
+          id: buzzer
+          level: "0%"
+      - output.turn_off: buzzer
+  - id: beep_long
+    then:
+      - logger.log: "Beep long"
+      - output.turn_on: buzzer
+      - output.set_level:
+          id: buzzer
+          level: "10%"
+      - output.ledc.set_frequency:
+          id: buzzer
+          frequency: "500Hz"
+      - delay: 500ms
+      - output.set_level:
+          id: buzzer
+          level: "0%"
+      - output.turn_off: buzzer
+  - id: beep_error
+    then:
+      - logger.log: "Beep error"
+      - output.turn_on: buzzer
+      - output.set_level:
+          id: buzzer
+          level: "10%"
+      - output.ledc.set_frequency:
+          id: buzzer
+          frequency: "200Hz"
+      - delay: 300ms
+      - output.set_level:
+          id: buzzer
+          level: "0%"
+      - delay: 100ms
+      - output.set_level:
+          id: buzzer
+          level: "10%"
+      - delay: 300ms
+      - output.set_level:
+          id: buzzer
+          level: "0%"
+      - delay: 100ms
+      - output.set_level:
+          id: buzzer
+          level: "10%"
+      - delay: 300ms
+      - output.set_level:
+          id: buzzer
+          level: "0%"
+      - output.turn_off: buzzer
+  - id: beep_on
+    then:
+      - logger.log: "Beep on"
+      - output.turn_on: buzzer
+      - output.set_level:
+          id: buzzer
+          level: "10%"
+      - output.ledc.set_frequency:
+          id: buzzer
+          frequency: "1500Hz"
+      - delay: 100ms
+      - output.set_level:
+          id: buzzer
+          level: "0%"
+      - delay: 100ms
+      - output.ledc.set_frequency:
+          id: buzzer
+          frequency: "1800Hz"
+      - output.set_level:
+          id: buzzer
+          level: "10%"
+      - delay: 300ms
+      - output.set_level:
+          id: buzzer
+          level: "0%"
+      - output.turn_off: buzzer
+  - id: beep_off
+    then:
+      - logger.log: "Beep on"
+      - output.turn_on: buzzer
+      - output.set_level:
+          id: buzzer
+          level: "10%"
+      - output.ledc.set_frequency:
+          id: buzzer
+          frequency: "1800Hz"
+      - delay: 100ms
+      - output.set_level:
+          id: buzzer
+          level: "0%"
+      - delay: 100ms
+      - output.ledc.set_frequency:
+          id: buzzer
+          frequency: "1500Hz"
+      - output.set_level:
+          id: buzzer
+          level: "10%"
+      - delay: 300ms
+      - output.set_level:
+          id: buzzer
+          level: "0%"
+      - output.turn_off: buzzer
+  - id: display_humidity
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(screen_bool);
+          then:
+            lambda: |-
+              auto x = id(humidity).state;
+              if (x < 100)
+                id(sevseg_ind).setNumber(int(x));
+          else:
+            lambda: |-
+              id(sevseg_ind).setChars("MM");
+  - id: display_temperature
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(screen_bool);
+          then:
+            lambda: |-
+              auto x = id(temperature).state;
+              if (x < 100)
+                id(sevseg_ind).setNumber(int(x));
+          else:
+            lambda: |-
+              id(sevseg_ind).setChars("MM");
+  - id: display_show_on
+    then:
+      - lambda: |-
+          id(sevseg_ind).setChars("on");
+      - delay: 2s
+      - script.execute: display_humidity
+  - id: display_show_off
+    then:
+      - lambda: |-
+          id(sevseg_ind).setChars("of");
+      - delay: 2s
+      - script.execute: display_humidity
+    
+esp32_touch:
+  setup_mode: False
+
+binary_sensor:
+  - platform: esp32_touch
+    name: "$devicename touch1"
+    pin: $pin_touch_1
+    threshold: 1060
+    filters:
+      - delayed_on_off: 100ms
+    on_multi_click:
+      - timing:
+          - ON for at most 250ms
+          - OFF for at least 100ms
+        then:
+          - if:
+              condition:
+                lambda: |-
+                  return id(buzzer_bool);
+              then:
+                - script.execute: beep_single
+          - switch.toggle: ion_switch
+          - if:
+              condition:
+                switch.is_on: ion_switch
+              then:
+                script.execute: display_show_on
+          - if:
+              condition:
+                switch.is_off: ion_switch
+              then:
+                script.execute: display_show_off
+          - delay: 2s
+          - script.execute: display_humidity
+      - timing:
+          - ON for at least 600ms
+        then:
+          - switch.toggle: screen_switch
+          - if:
+              condition:
+                lambda: |-
+                  return id(buzzer_bool);
+              then:
+                if:
+                  condition:
+                    switch.is_on: screen_switch
+                  then:
+                    script.execute: beep_off
+                  else:
+                    script.execute: beep_on
+            
+  - platform: esp32_touch
+    name: "$devicename touch2"
+    pin: $pin_touch_2
+    threshold: 1165
+    filters:
+      - delayed_on_off: 100ms
+    on_multi_click:
+      - timing:
+          - ON for at most 250ms
+          - OFF for at least 100ms
+        then:
+          - if:
+              condition:
+                lambda: |-
+                  return id(buzzer_bool);
+              then:
+                - script.execute: beep_single
+          - lambda: |-
+              auto time = id(ha_time).now();
+              id(sevseg_ind).printf("%02d", time.hour);
+          - delay: 1s
+          - lambda: |-
+              auto time = id(ha_time).now();
+              id(sevseg_ind).printf("%02d", time.minute);
+          - delay: 2s
+          - script.execute: display_humidity
+      - timing:
+          - ON for at least 600ms
+        then:
+          - switch.toggle: buzzer_switch
+          - if:
+              condition:
+                lambda: |-
+                  return id(buzzer_bool);
+              then:
+                script.execute: beep_on
+  - platform: esp32_touch
+    name: "$devicename touch3"
+    pin: $pin_touch_3
+    threshold: 1190
+    filters:
+      - delayed_on_off: 100ms
+    on_multi_click:
+      - timing:
+          - ON for at most 250ms
+          - OFF for at least 100ms
+        then:
+          - if:
+              condition:
+                lambda: |-
+                  return id(buzzer_bool);
+              then:
+                - script.execute: beep_single
+          - if:
+              condition:
+                and:
+                  - switch.is_off: mode1
+                  - switch.is_off: mode2
+              then:
+                - fan.turn_on:
+                    id: humidifier
+                    speed: LOW
+          - if:
+              condition:
+                and:
+                  - switch.is_on: mode1
+                  - switch.is_on: mode2
+              then:
+                - fan.turn_on:
+                    id: humidifier
+                    speed: LOW
+          - if:
+              condition:
+                and:
+                  - switch.is_on: mode1
+                  - switch.is_off: mode2
+              then:
+                - fan.turn_on:
+                    id: humidifier
+                    speed: MEDIUM
+          - if:
+              condition:
+                and:
+                  - switch.is_off: mode1
+                  - switch.is_on: mode2
+              then:
+                - fan.turn_on:
+                    id: humidifier
+                    speed: HIGH
+      - timing:
+          - ON for at least 600ms
+        then:
+          - if:
+              condition:
+                and:
+                  - switch.is_off: mode1
+                  - switch.is_off: mode2
+              then:
+                - fan.turn_on:
+                    id: humidifier
+                    speed: LOW
+                - if:
+                    condition:
+                      lambda: |-
+                        return id(buzzer_bool);
+                    then:
+                      - script.execute: beep_single
+              else:
+                - fan.turn_off: humidifier
+                - if:
+                    condition:
+                      lambda: |-
+                        return id(buzzer_bool);
+                    then:
+                      - script.execute: beep_long
+  - platform: gpio
+    name: "$devicename thirst"
+    pin:
+      number: $pin_water_thrist
+      mode: INPUT_PULLUP
+    filters:
+      - delayed_on_off: 100ms
+    on_press:
+      - output.turn_off: fan_output
+      - script.execute: beep_error
+      - lambda: |-
+          id(sevseg_ind).setChars("e1");
+  - platform: gpio
+    name: "$devicename water"
+    pin:
+      number: $pin_water_overfill
+      mode: INPUT_PULLUP
+      inverted: True
+    filters:
+      - delayed_on_off: 100ms
+    on_press:
+      - output.turn_off: fan_output
+      - script.execute: beep_error
+      - lambda: |-
+          id(sevseg_ind).setChars("e2");
+    
+switch:
+  - platform: gpio
+    id: mode1
+    pin:
+      number: $pin_mode_1
+      inverted: True
+    restore_mode: ALWAYS_OFF 
+    internal: true
+  - platform: gpio
+    id: mode2
+    pin:
+      number: $pin_mode_2
+      inverted: True
+    restore_mode: ALWAYS_OFF
+    internal: true
+  - platform: template
+    id: buzzer_switch
+    name: "$devicename buzzer"
+    restore_state: yes
+    lambda: |-
+      return id(buzzer_bool);
+    turn_on_action:
+      - globals.set:
+          id: buzzer_bool
+          value: 'true'
+    turn_off_action:
+      - globals.set:
+          id: buzzer_bool
+          value: 'false'
+  - platform: template
+    id: ion_switch
+    name: "$devicename ion"
+    restore_state: yes
+    lambda: |-
+      return id(ion_bool);
+    turn_on_action:
+      - globals.set:
+          id: ion_bool
+          value: 'true'
+      - if:
+          condition:
+            or:
+              - switch.is_on: mode1
+              - switch.is_on: mode2
+          then:
+            output.turn_on: ion
+    turn_off_action:
+      - globals.set:
+          id: ion_bool
+          value: 'false'
+      - output.turn_off: ion
+  - platform: template
+    name: "$devicename screen"
+    id: screen_switch
+    restore_state: yes
+    lambda: |-
+      return id(screen_bool);
+    turn_on_action:
+      - globals.set:
+          id: screen_bool
+          value: 'true'
+      - script.execute: display_show_on
+    turn_off_action:
+      - globals.set:
+          id: screen_bool
+          value: 'false'
+      - lambda: |-
+          id(sevseg_ind).setChars("MM");
+
+time:
+  - platform: homeassistant
+    id: ha_time
+    timezone: 'Europe/Moscow'
+
+globals:
+  - id: buzzer_bool
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+  - id: ion_bool
+    type: bool
+    restore_value: yes
+    initial_value: 'true'
+  - id: screen_bool
+    type: bool
+    restore_value: yes
+    initial_value: 'true'
+
+display:
+  - platform: sevseg
+    id: sevseg_ind

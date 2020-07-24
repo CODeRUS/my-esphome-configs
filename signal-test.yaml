@@ -1,0 +1,29 @@
+esphome:
+  name: signal_test
+  platform: ESP8266
+  board: nodemcuv2
+  platformio_options:
+    upload_speed: 460800
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+  ap:
+    ssid: "Signal Test Hotspot"
+    password: !secret hotspot_password
+
+logger:
+
+captive_portal:
+
+ota:
+  password: !secret ota_password
+
+sensor:
+  - platform: uptime
+    name: "signal_sensors_uptime"
+  - platform: wifi_signal
+    name: "signal_strength"
+    update_interval: 5s
+

@@ -1,0 +1,221 @@
+substitutions:
+  devicename: drivent
+  min_voltage: 0.05f
+  max_voltage: 0.95f
+  max_power: 0.6f
+  
+esphome:
+  name: $devicename
+  platform: ESP8266
+  board: esp12e
+  board_flash_mode: dout
+  esp8266_restore_from_flash: true
+  platformio_options:
+    platform: "espressif8266@2.6.2"
+    upload_speed: 460800
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+
+logger:
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+  
+  
+globals:
+  - id: max_power
+    type: float
+    restore_value: yes
+    initial_value: $max_power
+  - id: min_value
+    type: float
+    restore_value: yes
+    initial_value: $min_voltage
+  - id: max_value
+    type: float
+    restore_value: yes
+    initial_value: $max_voltage
+  - id: target_value
+    type: float
+    restore_value: yes
+    initial_value: 0.0f
+
+sensor:
+  - platform: uptime
+    name: "$devicename uptime"
+  - platform: adc
+    pin: A0
+    name: "$devicename raw position"
+    id: raw_value
+    update_interval: 50ms
+    on_value:
+      lambda: |-
+        uint8_t current = x * 100;
+        uint8_t min = id(min_value) * 100;
+        uint8_t max = id(max_value) * 100;
+        uint8_t target = id(target_value) * 100;
+        if ((current <= min && target <= min) || (current >= max && target >= max) || current == target) {
+          id(stop_motor).execute();
+        }
+  
+output:
+  - platform: esp8266_pwm
+    id: motor_up
+    pin: GPIO12
+    frequency: 20000 Hz
+    min_power: 0.0
+    max_power: 1.0
+  - platform: esp8266_pwm
+    id: motor_down
+    pin: GPIO13
+    frequency: 20000 Hz
+    min_power: 0.0
+    max_power: 1.0
+    
+switch:
+  - platform: template
+    name: "$devicename set min"
+    lambda: return false;
+    turn_on_action:
+      - lambda: id(min_value) = id(raw_value).state;
+  - platform: template
+    name: "$devicename set max"
+    lambda: return false;
+    turn_on_action:
+      - lambda: id(max_value) = id(raw_value).state;
+  - platform: template
+    name: "$devicename reset"
+    lambda: return false;
+    turn_on_action:
+      - lambda: |-
+          id(min_value) = $min_voltage;
+          id(max_value) = $max_voltage;
+
+cover:
+  - platform: template
+    id: cover_id
+    name: "$devicename cover"
+    lambda: |-
+      auto pos = (id(raw_value).state - id(min_value)) / (id(max_value) - id(min_value));
+      return pos;
+    open_action:
+      lambda: |-
+        id(target_value) = id(max_value);
+        id(position_cover).execute();
+    close_action:
+      lambda: |-
+        id(target_value) = id(min_value);
+        id(position_cover).execute();
+    stop_action:
+      lambda: |-
+        id(stop_motor).execute();
+    position_action:
+      - lambda: |-
+          id(target_value) = (id(max_value) - id(min_value)) * pos + id(min_value);
+          id(position_cover).execute();
+    
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO4
+      inverted: True
+    name: "$devicename button1"
+    on_press:
+      lambda: |-
+        auto call = id(cover_id).make_call();
+        call.set_command_open();
+        call.perform();
+  - platform: gpio
+    pin:
+      number: GPIO5
+      inverted: True
+    name: "$devicename button2"
+    on_press:
+      lambda: |-
+        auto call = id(cover_id).make_call();
+        call.set_command_close();
+        call.perform();
+  - platform: gpio
+    pin: GPIO14
+    name: "$devicename overload"
+    on_press:
+      lambda: id(rollback_motor).execute();
+        
+script:
+  - id: rollback_motor
+    then:
+      lambda: |-
+        if (id(cover_id).current_operation == COVER_OPERATION_OPENING) {
+          id(motor_up).set_level(0.0f);
+          id(motor_down).set_level(id(max_power));
+        } else if (id(cover_id).current_operation == COVER_OPERATION_CLOSING) {
+          id(motor_down).set_level(0.0f);
+          id(motor_up).set_level(id(max_power));
+        } else {
+          return;
+        }
+        delay(300);
+        
+        id(target_value) = id(raw_value).state;
+        id(motor_up).set_level(1.0f);
+        id(motor_down).set_level(1.0f);
+        delay(300);
+        id(motor_up).set_level(0.0f);
+        id(motor_down).set_level(0.0f);
+        id(cover_id).current_operation = COVER_OPERATION_IDLE;
+        id(cover_id).publish_state();
+  - id: stop_motor
+    then:
+      lambda: |-
+        id(target_value) = id(raw_value).state;
+        id(motor_up).set_level(1.0f);
+        id(motor_down).set_level(1.0f);
+        delay(300);
+        id(motor_up).set_level(0.0f);
+        id(motor_down).set_level(0.0f);
+        id(cover_id).current_operation = COVER_OPERATION_IDLE;
+        id(cover_id).publish_state();
+  - id: open_cover
+    then:
+      lambda: |-
+        if (id(cover_id).current_operation == COVER_OPERATION_IDLE) {
+          id(motor_up).set_level(id(max_power));
+          id(motor_down).set_level(0.0f);
+          id(cover_id).current_operation = COVER_OPERATION_OPENING;
+          id(cover_id).publish_state();
+        } else {
+          id(stop_motor).execute();
+        }
+  - id: close_cover
+    then:
+      lambda: |-
+        if (id(cover_id).current_operation == COVER_OPERATION_IDLE) {
+          id(motor_up).set_level(0.0f);
+          id(motor_down).set_level(id(max_power));
+          id(cover_id).current_operation = COVER_OPERATION_CLOSING;
+          id(cover_id).publish_state();
+        } else {
+          id(stop_motor).execute();
+        }
+  - id: position_cover
+    then:
+      lambda: |-
+        auto current_value = id(raw_value).state;
+        if (id(target_value) > current_value) {
+          id(open_cover).execute();
+        } else if (id(target_value) < current_value) {
+          id(close_cover).execute();
+        } else {
+          id(stop_motor).execute();
+        }
+
+status_led:
+  pin:
+    number: GPIO2
+    inverted: True

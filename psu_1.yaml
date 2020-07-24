@@ -1,0 +1,43 @@
+substitutions:
+  devicename: psu_1
+  
+esphome:
+  name: $devicename
+  platform: ESP8266
+  board: nodemcuv2
+  platformio_options:
+    platform: "espressif8266@2.6.2"
+    upload_speed: 460800
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+
+logger:
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+
+sensor:
+  - platform: uptime
+    name: "$devicename uptime"
+
+switch:
+  - platform: gpio
+    name: '$devicename psu'
+    id: psu
+    pin:
+      number: D4
+      inverted: true
+      
+binary_sensor:
+  - platform: gpio
+    id: btn0
+    pin: GPIO0
+    on_press:
+      then:
+        switch.toggle: psu

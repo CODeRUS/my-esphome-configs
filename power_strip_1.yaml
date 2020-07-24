@@ -1,0 +1,91 @@
+esphome:
+  name: power_strip_1
+  platform: ESP8266
+  board: esp01_1m
+  esp8266_restore_from_flash: true
+  platformio_options:
+    platform: "espressif8266@2.5.3"
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Power Strip 1"
+    password: !secret hotspot_password
+
+captive_portal:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+  
+binary_sensor:
+  - platform: status
+    id: power_strip_1_status
+    name: "power_strip_1_status"
+  - platform: gpio
+    pin:
+      number: GPIO3
+      mode: INPUT_PULLUP
+      inverted: true
+    on_click:
+    - min_length: 50ms
+      max_length: 650ms
+      then:
+        - switch.toggle: power_strip_1_usb
+    - min_length: 700ms
+      max_length: 3000ms
+      then:
+        - switch.toggle: power_strip_1_plug1
+        - switch.toggle: power_strip_1_plug2
+        - switch.toggle: power_strip_1_plug3
+        - switch.toggle: power_strip_1_plug4
+    id: power_strip_1_button
+    name: "power_strip_1_button"
+    
+sensor:
+  - platform: uptime
+    id: power_strip_1_uptime
+    name: "power_strip_1_uptime"
+  
+switch:
+  - platform: gpio
+    id: power_strip_1_led
+    name: "power_strip_1_led"
+    pin:
+      number: GPIO1
+      inverted: yes
+  - platform: gpio
+    id: power_strip_1_plug1
+    name: "power_strip_1_plug1"
+    pin: GPIO5
+    restore_mode: RESTORE_DEFAULT_ON
+  - platform: gpio
+    id: power_strip_1_plug2
+    name: "power_strip_1_plug2"
+    pin: GPIO4
+    restore_mode: RESTORE_DEFAULT_ON
+  - platform: gpio
+    id: power_strip_1_plug3
+    name: "power_strip_1_plug3"
+    pin: GPIO12
+    restore_mode: RESTORE_DEFAULT_ON
+  - platform: gpio
+    id: power_strip_1_plug4
+    name: "power_strip_1_plug4"
+    pin: GPIO13
+    restore_mode: RESTORE_DEFAULT_ON
+  - platform: gpio
+    id: power_strip_1_usb
+    name: "power_strip_1_usb"
+    pin: GPIO14
+    restore_mode: RESTORE_DEFAULT_ON

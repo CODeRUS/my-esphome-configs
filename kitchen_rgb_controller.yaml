@@ -1,0 +1,75 @@
+substitutions:
+  devicename: kitchen_rgb_controller
+  co2_name: kitchen
+  
+esphome:
+  name: "$devicename"
+  platform: ESP8266
+  board: nodemcu
+  platformio_options:
+    platform: "espressif8266@2.6.2"
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: false
+
+logger:
+  baud_rate: 0
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+
+uart:
+    id: uart0
+    rx_pin: 3
+    tx_pin: 1
+    baud_rate: 9600
+
+sensor:
+  - platform: uptime
+    name: kitchen_rgb_uptime
+  - platform: senseair
+    co2:
+      name: "$co2_name co2"
+    uart_id: uart0
+    update_interval: 30s
+
+light:
+  - platform: rgb
+    name: kitchen_rgb
+    red: output_component_red
+    green: output_component_green
+    blue: output_component_blue
+
+binary_sensor:
+  - platform: gpio
+    pin: 0
+    name: kitchen_rgb_button
+
+status_led:
+  pin:
+    number: 16
+    inverted: False
+
+output:
+  - platform: esp8266_pwm
+    id: output_component_red
+    pin: 12
+  - platform: esp8266_pwm
+    id: output_component_green
+    pin: 13
+  - platform: esp8266_pwm
+    id: output_component_blue
+    pin: 14
+    
+switch:
+  - platform: gpio
+    name: "$devicename cal"
+    pin:
+      number: 5
+      inverted: True
+    restore_mode: ALWAYS_OFF

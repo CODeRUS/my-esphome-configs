@@ -1,0 +1,55 @@
+esphome:
+  name: doorlock
+  platform: ESP8266
+  board: esp01_1m
+  board_flash_mode: dout
+  esp8266_restore_from_flash: true
+  platformio_options:
+    platform: "espressif8266@2.5.3"
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Sonoff SV Fallback"
+    password: !secret hotspot_password
+
+captive_portal:
+
+logger:
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO0
+    name: "doorlock_button"
+    on_press:
+      - switch.toggle: relay
+
+sensor:
+  - platform: uptime
+    name: "doorlock_uptime"
+  - platform: wifi_signal
+    name: "doorlock_signal"
+    update_interval: 60s
+
+switch:
+  - platform: gpio
+    name: "doorlock_relay"
+    pin:
+      number: GPIO12
+      inverted: true
+    restore_mode: RESTORE_DEFAULT_ON
+    id: 'relay'
+
+status_led:
+  pin: GPIO13

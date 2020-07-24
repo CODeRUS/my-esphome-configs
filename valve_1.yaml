@@ -1,0 +1,66 @@
+substitutions:
+  devicename: valve_1
+  
+esphome:
+  name: "$devicename"
+  platform: ESP8266
+  board: esp_wroom_02
+  esp8266_restore_from_flash: true
+  platformio_options:
+    platform: "espressif8266@2.6.2"
+    upload_speed: 460800
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+
+logger:
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+
+status_led:
+  pin: 
+    number: 5
+    inverted: false
+
+binary_sensor:
+  - platform: gpio
+    pin: 13
+    name: "$devicename button"
+    id: valve_sm_aw713_button
+    on_release:
+      then:
+      - switch.toggle: valve_sm_aw713
+
+switch:
+  - platform: gpio
+    pin: 12
+    id: valve_sm_aw713
+    name: "$devicename"
+    icon: "mdi:water"
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      then:
+      - output.turn_on: valve_sm_aw713_switch_led
+    on_turn_off:
+      then:
+      - output.turn_off: valve_sm_aw713_switch_led    
+
+output:
+  - platform: gpio
+    pin:
+      number: 4
+      inverted: true      
+    id: valve_sm_aw713_switch_led
+
+sensor:
+  - platform: wifi_signal
+    name: "$devicename wifi_signal"
+    update_interval: 60s
+  - platform: uptime
+    name: "$devicename uptime"

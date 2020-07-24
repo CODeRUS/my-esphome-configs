@@ -1,0 +1,96 @@
+substitutions:
+  devicename: water_consumption_kitchen
+
+esphome:
+  name: "${devicename}"
+  platform: ESP8266
+  board: nodemcuv2
+  esp8266_restore_from_flash: true
+  platformio_options:
+    platform: "espressif8266@2.6.0"
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+
+logger:
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+  
+binary_sensor:
+  - platform: status
+    name: "${devicename}_status"
+  - platform: gpio
+    name: "${devicename}_cold"
+    pin:
+      number: D5
+      mode: INPUT_PULLUP
+    filters:
+      - delayed_on_off: 100ms
+    on_release:
+      then:
+        - lambda: |-
+            id(cold_water_counter) += 10;
+  - platform: gpio
+    name: "${devicename}_hot"
+    pin:
+      number: D6
+      mode: INPUT_PULLUP
+    filters:
+      - delayed_on_off: 100ms
+    on_release:
+      then:
+        - lambda: |-
+            id(hot_water_counter) += 10;
+  - platform: gpio
+    name: "${devicename}_clean"
+    pin:
+      number: D7
+      mode: INPUT_PULLUP
+    filters:
+      - delayed_on_off: 100ms
+    on_release:
+      then:
+        - lambda: |-
+            id(clean_water_counter) += 10;
+    
+sensor:
+  - platform: uptime
+    name: "${devicename}_uptime"
+  - platform: template
+    name: "${devicename}_cold_count"
+    unit_of_measurement: "liters"
+    lambda: |-
+      return id(cold_water_counter);
+    update_interval: 60s
+  - platform: template
+    name: "${devicename}_hot_count"
+    unit_of_measurement: "liters"
+    lambda: |-
+      return id(hot_water_counter);
+    update_interval: 60s
+  - platform: template
+    name: "${devicename}_clean_count"
+    unit_of_measurement: "liters"
+    lambda: |-
+      return id(clean_water_counter);
+    update_interval: 60s
+
+globals:
+  - id: hot_water_counter
+    type: uint32
+    restore_value: yes
+    initial_value: '0'
+  - id: cold_water_counter
+    type: uint32
+    restore_value: yes
+    initial_value: '0'
+  - id: clean_water_counter
+    type: uint32
+    restore_value: yes
+    initial_value: '0'

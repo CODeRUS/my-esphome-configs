@@ -1,0 +1,13 @@
+esphome:
+  name: minimal_esphome
+  platform: ESP8266
+  board: esp01_1m
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+
+logger:
+
+ota:

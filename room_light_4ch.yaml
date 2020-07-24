@@ -1,0 +1,120 @@
+esphome:
+  name: room_light_4ch
+  platform: ESP8266
+  board: esp01_1m
+  esp8266_restore_from_flash: true
+  platformio_options:
+    platform: "espressif8266@2.5.3"
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Room Lights 4CH Fallback Hotspot"
+    password: !secret hotspot_password
+
+captive_portal:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+
+sensor:
+  - platform: uptime
+    name: room_light_4ch_uptime
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: True
+    name: room_light_4ch_btn1
+    on_click:
+    - min_length: 50ms
+      then:
+        - light.toggle: room_light_4ch_relay1
+  - platform: gpio
+    pin:
+      number: GPIO9
+      mode: INPUT_PULLUP
+      inverted: True
+    name: room_light_4ch_btn2
+    on_click:
+    - min_length: 50ms
+      then:
+        - light.toggle: room_light_4ch_relay2
+  - platform: gpio
+    pin:
+      number: GPIO10
+      mode: INPUT_PULLUP
+      inverted: True
+    name: room_light_4ch_btn3
+    on_click:
+    - min_length: 50ms
+      then:
+        - light.toggle: room_light_4ch_relay3
+  - platform: gpio
+    pin:
+      number: GPIO14
+      mode: INPUT_PULLUP
+      inverted: True
+    name: room_light_4ch_btn4
+    on_click:
+    - min_length: 50ms
+      then:
+        - light.toggle: room_light_4ch_relay4
+  - platform: status
+    name: room_light_4ch_status
+
+output:
+  - platform: esp8266_pwm
+    id: blue_led
+    pin: GPIO13
+    inverted: True
+  - platform: gpio
+    id: room_light_4ch_output1
+    pin: GPIO12
+  - platform: gpio
+    id: room_light_4ch_output2
+    pin: GPIO5
+  - platform: gpio
+    id: room_light_4ch_output3
+    pin: GPIO4
+  - platform: gpio
+    id: room_light_4ch_output4
+    pin: GPIO15
+
+light:
+  - platform: monochromatic
+    name: room_light_4ch_led
+    output: blue_led
+  - platform: binary
+    id: room_light_4ch_relay1
+    name: room_light_4ch_relay1
+    output: room_light_4ch_output1
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: binary
+    id: room_light_4ch_relay2
+    name: room_light_4ch_relay2
+    output: room_light_4ch_output2
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: binary
+    id: room_light_4ch_relay3
+    name: room_light_4ch_relay3
+    output: room_light_4ch_output3
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: binary
+    id: room_light_4ch_relay4
+    name: room_light_4ch_relay4
+    output: room_light_4ch_output4
+    restore_mode: RESTORE_DEFAULT_OFF

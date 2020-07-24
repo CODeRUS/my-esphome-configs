@@ -1,0 +1,35 @@
+esphome:
+  name: ble_presence_tracker_1
+  platform: ESP32
+  board: esp32doit-devkit-v1
+
+wifi:
+  ssid: "omhome"
+  password: "omnomnom"
+  fast_connect: true
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: "only4one8esp"
+
+ota:
+  password: "only4one8esp"
+  
+esp32_ble_tracker:
+
+binary_sensor:
+  - platform: ble_presence
+    mac_address: 04:B4:29:67:EA:24
+    name: "Galaxy Watch"
+  - platform: ble_presence
+    mac_address: 88:75:98:F4:43:B4
+    name: "Galaxy S9+"
+  - platform: status
+    name: "ble_presence_tracker_1_status"
+    
+sensor:
+  - platform: uptime
+    name: "ble_presence_tracker_1_uptime"

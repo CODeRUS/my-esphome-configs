@@ -1,0 +1,114 @@
+substitutions:
+  devicename: ring
+
+esphome:
+  name: "$devicename"
+  platform: ESP8266
+  board: esp01_1m
+  esp8266_restore_from_flash: true
+  platformio_options:
+    platform: "espressif8266@2.6.0"
+
+wifi:
+  ssid: !secret ap_name
+  password: !secret ap_password
+  fast_connect: true
+  manual_ip:
+    static_ip: 192.168.1.158
+    gateway: 192.168.1.1
+    subnet: 255.255.255.0
+
+  ap:
+    ssid: "Hotspot $devicename"
+    password: !secret hotspot_password
+
+logger:
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+  
+globals:
+  - id: ring_relay_bind
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+    
+time:
+  - platform: sntp
+    timezone: Europe/Moscow
+    on_time:
+      - seconds: 0
+        minutes: 0
+        hours: 12
+        days_of_week: MON
+        then:
+          - switch.turn_on: reset
+
+sensor:
+  - platform: uptime
+    name: ring_uptime
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: True
+    name: "$devicename btn0"
+    on_click:
+      - min_length: 50ms
+        then:
+          - switch.toggle: ring_relay
+  - platform: gpio
+    pin:
+      number: GPIO14
+      mode: INPUT_PULLUP
+      inverted: True
+    name: "$devicename btn14"
+    on_press:
+      then:
+        if:
+          condition:
+            - switch.is_on: ring_enabled
+          then:
+            - switch.turn_on: ring_relay
+    on_release:
+      then:
+        - switch.turn_off: ring_relay
+    filters:
+      - delayed_on_off: 50ms
+  - platform: status
+    name: "$devicename status"
+
+status_led:
+  pin:
+    number: GPIO13
+    inverted: True
+    
+switch:
+  - platform: restart
+    id: reset
+    internal: true
+  - platform: gpio
+    id: ring_relay
+    name: "$devicename relay"
+    pin: GPIO12
+    restore_mode: ALWAYS_OFF
+  - platform: template
+    name: "$devicename enabled"
+    id: ring_enabled
+    restore_state: yes
+    lambda: |-
+      return id(ring_relay_bind);
+    turn_on_action:
+      - globals.set:
+          id: ring_relay_bind
+          value: 'true'
+    turn_off_action:
+      - globals.set:
+          id: ring_relay_bind
+          value: 'false'
+      - switch.turn_off: ring_relay
